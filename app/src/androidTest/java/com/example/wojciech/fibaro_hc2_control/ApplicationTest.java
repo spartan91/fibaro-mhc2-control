@@ -1,4 +1,4 @@
-package com.example.wojciech.fibaro_mhc2_control;
+package com.example.wojciech.fibaro_hc2_control;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

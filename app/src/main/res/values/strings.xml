@@ -1,6 +1,19 @@
 <resources>
-    <string name="app_name">fibaro-mhc2-control</string>
+    <string name="app_name">fibaro-hc2-control</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
 
     <string name="hello_world">Hello world!</string>
+    <!--MainActivity-->
     <string name="action_settings">Settings</string>
+
+    <!--NavHeader-->
+    <string name="nav_home">Home</string>
+    <string name="nav_sections">Sections</string>
+    <string name="nav_rooms">Rooms</string>
+    <string name="nav_devices">Devices</string>
+    <string name="nav_hmc_info">HMC info</string>
+
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
