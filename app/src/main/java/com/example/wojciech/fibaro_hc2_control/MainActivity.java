@@ -10,7 +10,6 @@ import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.design.widget.NavigationView;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
@@ -18,7 +17,6 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -39,12 +37,11 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity
         implements SectionsFragment.OnSectionsFragmentInteractionListener,
-        RoomsFragment.OnRoomsFragmentInteractionListener,
-        DevicesFragment.OnDevicesFragmentInteractionListener {
+        RoomsFragment.OnRoomsFragmentInteractionListener {
     private String TAG = MainActivity.class.getSimpleName();
 
 
-    private CharSequence mTitle;
+    private CharSequence title;
     private Toolbar mToolbar;
     private DrawerLayout mDrawerLayout;
     private ActionBarDrawerToggle drawerToggle;
@@ -59,8 +56,6 @@ public class MainActivity extends AppCompatActivity
 
         final ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
-            //doesnt need to be used anymore
-            //actionBar.setHomeAsUpIndicator(R.drawable.ic_menu);
             actionBar.setDisplayHomeAsUpEnabled(true);
         }
 
@@ -80,8 +75,6 @@ public class MainActivity extends AppCompatActivity
         if (savedInstanceState == null) {
             if (navigationView != null)
                 navigationView.getMenu().performIdentifierAction(R.id.nav_home, 0);
-        } else {
-            //cvList = savedInstanceState.getParcelableArrayList(KEY_CV);
         }
 
     }
@@ -136,7 +129,7 @@ public class MainActivity extends AppCompatActivity
                                     i.putExtra(ServiceHC2.EXTRA_REQUESTED_ACTION, ServiceHC2.ServiceHC2Action.GetInfo.getValue());
                                     startService(i);
                                 } else {
-                                    Toast.makeText(MainActivity.this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(MainActivity.this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
                                 }
 
                                 break;
@@ -155,7 +148,7 @@ public class MainActivity extends AppCompatActivity
                                     i.putExtra(ServiceHC2.EXTRA_REQUESTED_ACTION, ServiceHC2.ServiceHC2Action.GetSections.getValue());
                                     startService(i);
                                 } else {
-                                    Toast.makeText(MainActivity.this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(MainActivity.this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
                                 }
                                 break;
 
@@ -173,7 +166,7 @@ public class MainActivity extends AppCompatActivity
                                     i.putExtra(ServiceHC2.EXTRA_REQUESTED_ACTION, ServiceHC2.ServiceHC2Action.GetRooms.getValue());
                                     startService(i);
                                 } else {
-                                    Toast.makeText(MainActivity.this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(MainActivity.this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
                                 }
                                 break;
                             case R.id.nav_devices:
@@ -190,7 +183,7 @@ public class MainActivity extends AppCompatActivity
                                     i.putExtra(ServiceHC2.EXTRA_REQUESTED_ACTION, ServiceHC2.ServiceHC2Action.GetDevices.getValue());
                                     startService(i);
                                 } else {
-                                    Toast.makeText(MainActivity.this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(MainActivity.this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
                                 }
                                 break;
                         }
@@ -205,22 +198,19 @@ public class MainActivity extends AppCompatActivity
     public void onSectionAttached(int number) {
         switch (number) {
             case 1:
-                mTitle = getString(R.string.nav_hmc_info);
+                this.title = getString(R.string.nav_hmc_info);
                 break;
             case 2:
-                mTitle = getString(R.string.nav_sections);
+                this.title = getString(R.string.nav_sections);
                 break;
             case 3:
-                mTitle = getString(R.string.nav_rooms);
+                this.title = getString(R.string.nav_rooms);
                 break;
             case 4:
-                mTitle = getString(R.string.nav_devices);
-                break;
-            case 5:
-                mTitle = getString(R.string.nav_hmc_info);
+                this.title = getString(R.string.nav_devices);
                 break;
         }
-        setTitle(mTitle);
+        setTitle(this.title);
     }
 
     @Override
@@ -326,7 +316,7 @@ public class MainActivity extends AppCompatActivity
                                     fragment = DevicesFragment.newInstance(arrayListR);
 
                                 getSupportFragmentManager().beginTransaction()
-                                        .replace(R.id.container, fragment)
+                                        .replace(R.id.container, fragment,tag)
                                         .addToBackStack(tag)
                                         .commit();
                             } catch (Exception e) {
@@ -341,7 +331,8 @@ public class MainActivity extends AppCompatActivity
                                 if (fragment != null) {
                                     ArrayList<Device> arrayList = intent.getParcelableArrayListExtra(ServiceHC2.RESULT_PARCEL);
                                     if (arrayList != null) {
-                                        fragment.update(arrayList);
+                                        Log.d(TAG,"setUp: "+arrayList.size()+" devices.");
+                                        fragment.setUp(arrayList);
                                     }
                                 }
                             } catch (Exception e) {
@@ -349,6 +340,19 @@ public class MainActivity extends AppCompatActivity
                             }
                             break;
                         case GetDevice:
+                            try {
+                                String tag = DevicesFragment.class.getSimpleName();
+                                DevicesFragment fragment = (DevicesFragment) getSupportFragmentManager().findFragmentByTag(tag);
+                                if (fragment != null) {
+                                    ArrayList<Device> arrayList = intent.getParcelableArrayListExtra(ServiceHC2.RESULT_PARCEL);
+                                    if (arrayList != null) {
+                                        Log.d(TAG,"Update: "+arrayList.size()+" devices.");
+                                        fragment.update(arrayList);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
                             break;
                         case CallActionSwitch:
                             break;
@@ -381,10 +385,6 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    @Override
-    public void onFragmentInteraction(Device device) {
-        Toast.makeText(this, "DEVICE CLICKED: " + device.name, Toast.LENGTH_SHORT).show();
-    }
 
     @Override
     public void onFragmentInteraction(Room room) {
@@ -395,7 +395,7 @@ public class MainActivity extends AppCompatActivity
             i.putExtra(ServiceHC2.EXTRA_REQUESTED_OBJECT, room);
             startService(i);
         } else {
-            Toast.makeText(this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
         }
 
     }
@@ -410,7 +410,7 @@ public class MainActivity extends AppCompatActivity
             i.putExtra(ServiceHC2.EXTRA_REQUESTED_OBJECT, section);
             startService(i);
         } else {
-            Toast.makeText(this, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, MainActivity.this.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -434,25 +434,22 @@ public class MainActivity extends AppCompatActivity
                 i.putExtra(ServiceHC2.EXTRA_REQUESTED_ACTION, ServiceHC2.ServiceHC2Action.Update.getValue());
                 context.startService(i);
             } else {
-                Toast.makeText(context, "Please check the Internet connection.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, context.getString(R.string.error_internet), Toast.LENGTH_SHORT).show();
             }
 
         }
 
     }
 
-    // Setup a recurring alarm every half hour
+
     public void scheduleAlarm() {
         cancel=false;
-        // Construct an intent that will execute the AlarmReceiver
         Intent intent = new Intent(getApplicationContext(), UpdaterReceiver.class);
-        // Create a PendingIntent to be triggered when the alarm goes off
         final PendingIntent pIntent = PendingIntent.getBroadcast(this, UpdaterReceiver.REQUEST_CODE,
                 intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        // Setup periodic alarm every 5 seconds
-        long firstMillis = System.currentTimeMillis(); // alarm is set right away
+        long firstMillis = System.currentTimeMillis();
         AlarmManager alarm = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
-        int interval = 10 * 1000;
+        int interval = 10 * 1000;//10 secs
         // First parameter is the type: ELAPSED_REALTIME, ELAPSED_REALTIME_WAKEUP, RTC_WAKEUP
         // Interval can be INTERVAL_FIFTEEN_MINUTES, INTERVAL_HALF_HOUR, INTERVAL_HOUR, INTERVAL_DAY
         alarm.setInexactRepeating(AlarmManager.RTC_WAKEUP, firstMillis,

@@ -2,14 +2,12 @@ package com.example.wojciech.fibaro_hc2_control.service;
 
 import android.app.Activity;
 import android.app.IntentService;
-import android.content.Context;
 import android.content.Intent;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.example.wojciech.fibaro_hc2_control.MainActivity;
-import com.example.wojciech.fibaro_hc2_control.R;
 import com.example.wojciech.fibaro_hc2_control.model.Device;
 import com.example.wojciech.fibaro_hc2_control.model.HC2;
 import com.example.wojciech.fibaro_hc2_control.model.RefreshStates;
@@ -38,7 +36,6 @@ public class ServiceHC2 extends IntentService {
     public static final String EXTRA_REQUESTED_OBJECT = "object";
     public static final String EXTRA_REQUESTED_VALUE = "value";
 
-    public static final String EXTRA_REQUESTED_ACTION_ID = "action_id";
     public static final String USER = "admin";
     public static final String PASS = "admin";
 
@@ -107,17 +104,14 @@ public class ServiceHC2 extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        // Do the task here
         Log.d(TAG, "Service running " + System.currentTimeMillis());
-        String result = "";
         if (ConnectivityUtil.isNetworkAvailable(this)) {
             int req = intent.getIntExtra(EXTRA_REQUESTED_ACTION, 0);
             ServiceHC2Action action = ServiceHC2Action.fromInteger(req);
             try {
-                int id = intent.getIntExtra(EXTRA_REQUESTED_ACTION_ID, 0);
                 switch (action) {
                     case Update:
-                        update();
+                        getDevices(true);
                         break;
                     case GetSection://Need to get rooms for that
                         getSection(intent);
@@ -134,7 +128,7 @@ public class ServiceHC2 extends IntentService {
                     case GetDevice:
                         break;
                     case GetDevices:
-                        getDevices();
+                        getDevices(false);
                         break;
                     case CallActionSwitch:
                         getActionCallSwitch(intent);
@@ -148,7 +142,6 @@ public class ServiceHC2 extends IntentService {
                     default:
                         break;
                 }
-                runRefresh();
                 update();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -158,41 +151,71 @@ public class ServiceHC2 extends IntentService {
         }
     }
 
-    private void update() throws IOException {
-        getSections();
-        getRooms();
-        getDevices();
+    private void updateUiDevices(ArrayList<Device> arrayList) {
+        Intent in = new Intent(MainActivity.ACTION);
+        in.putExtra(RESULT_CODE, Activity.RESULT_OK);
+        in.putExtra(RESULT_ACTION, ServiceHC2Action.GetDevice.getValue());
+        in.putExtra(RESULT_PARCEL, arrayList);
+        LocalBroadcastManager.getInstance(ServiceHC2.this).sendBroadcast(in);
+    }
+
+
+    private void updateDevice(int deviceID) {
+        Log.d(TAG, "updateDevice id: " + deviceID);
+        String result = null;
+        try {
+            result = getUrl(HC2Actions.getDevice(deviceID), 15000);
+            if (!TextUtils.isEmpty(result)) {
+                Device dev = DataParserUtil.parseToDevice(result);
+                ArrayList<Device> arrayList = new ArrayList<>();
+                arrayList.add(dev);
+                updateUiDevices(arrayList);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void update() {
+        runRefresh();
     }
 
     static boolean isRunning = false;
-    private void runRefresh( ) {
-        if(!isRunning)
-        Executors.newSingleThreadExecutor().execute(new Runnable() {
-            @Override
-            public void run() {
-                isRunning=true;
-                String result;
-                try {
-                    result = getUrl(HC2Actions.getRefreshStatestes(), 15000);
-                    if (!TextUtils.isEmpty(result)) {
-                        RefreshStates hc2 = DataParserUtil.parseToRefreshStates(result);
-                        if (hc2 != null) {
-                            //TODO Update state of devices
-                            result = getUrl(HC2Actions.getRefreshStatestes(), 35000);
-                            hc2 = DataParserUtil.parseToRefreshStates(result);
-                            Intent in = new Intent(MainActivity.ACTION);
-                            in.putExtra(RESULT_CODE, Activity.RESULT_OK);
-                            in.putExtra(RESULT_ACTION, ServiceHC2Action.RefreshStates.getValue());
-                            //in.putExtra(RESULT_PARCEL, hc2);
-                            //LocalBroadcastManager.getInstance(ServiceHC2.this).sendBroadcast(in);
+
+    private void runRefresh() {
+        Log.d(TAG, "runRefresh " + isRunning);
+        if (!isRunning)
+            Executors.newSingleThreadExecutor().execute(new Runnable() {
+                @Override
+                public void run() {
+                    isRunning = true;
+                    Log.d(TAG, "runRefresh run");
+                    String result;
+                    try {
+                        result = getUrl(HC2Actions.getRefreshStatestes(), 31000);
+                        if (!TextUtils.isEmpty(result)) {
+                            RefreshStates hc2 = DataParserUtil.parseToRefreshStates(result);
+                            if (hc2 != null) {
+                                Log.d(TAG, "runRefresh state last: " + hc2.last);
+
+                                result = getUrl(HC2Actions.getRefreshStatestes(hc2.last), 31000);
+                                hc2 = DataParserUtil.parseToRefreshStates(result);
+                                if (hc2 != null && hc2.changes.size() > 0) {
+                                    Log.d(TAG, "runRefresh state ID: " + hc2.changes.get(0).id + " val: " + hc2.changes.get(0).value);
+                                    updateDevice(hc2.changes.get(0).id);
+                                }
+
+                            }
                         }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    update();//may perform update from this thread
+                    isRunning = false;
                 }
-                isRunning=false;
-            }
-        });
+            });
     }
 
     private void getInfo() throws IOException {
@@ -244,7 +267,7 @@ public class ServiceHC2 extends IntentService {
         }
     }
 
-    private void getDevices() throws IOException {
+    private void getDevices(boolean withUpdate) throws IOException {
         String result;
         result = getUrl(HC2Actions.getDevices(), 20000);
         if (!TextUtils.isEmpty(result)) {
@@ -255,7 +278,8 @@ public class ServiceHC2 extends IntentService {
                 if (list.size() > 0) {
                     Intent in = new Intent(MainActivity.ACTION);
                     in.putExtra(RESULT_CODE, Activity.RESULT_OK);
-                    in.putExtra(RESULT_ACTION, ServiceHC2Action.GetDevices.getValue());
+                    if(withUpdate) in.putExtra(RESULT_ACTION, ServiceHC2Action.GetDevice.getValue());
+                    else in.putExtra(RESULT_ACTION, ServiceHC2Action.GetDevices.getValue());
                     in.putParcelableArrayListExtra(RESULT_PARCEL, list);
                     LocalBroadcastManager.getInstance(this).sendBroadcast(in);
                 }
@@ -288,19 +312,21 @@ public class ServiceHC2 extends IntentService {
         result = getUrl(HC2Actions.getDevices(), 20000);
         if (!TextUtils.isEmpty(result)) {
             List<Device> devices = DataParserUtil.parseToDeviceList(result);
-            ArrayList<Device> devicesToShow = new ArrayList<>();
-            for (Device d : devices) {
-                if (d.roomID == r.id) {
-                    devicesToShow.add(d);
+            if (devices != null && devices.size() > 0) {
+                ArrayList<Device> devicesToShow = new ArrayList<>();
+                for (Device d : devices) {
+                    if (d.roomID == r.id) {
+                        devicesToShow.add(d);
+                    }
                 }
-            }
-            if (devicesToShow.size() > 0) {
-                Intent in = new Intent(MainActivity.ACTION);
-                in.putExtra(RESULT_CODE, Activity.RESULT_OK);
-                in.putExtra(RESULT_ACTION, ServiceHC2Action.GetRoom.getValue());
-                in.putParcelableArrayListExtra(RESULT_PARCEL, devicesToShow);
-                LocalBroadcastManager.getInstance(this).sendBroadcast(in);
+                if (devicesToShow.size() > 0) {
+                    Intent in = new Intent(MainActivity.ACTION);
+                    in.putExtra(RESULT_CODE, Activity.RESULT_OK);
+                    in.putExtra(RESULT_ACTION, ServiceHC2Action.GetRoom.getValue());
+                    in.putParcelableArrayListExtra(RESULT_PARCEL, devicesToShow);
+                    LocalBroadcastManager.getInstance(this).sendBroadcast(in);
 
+                }
             }
         }
     }
@@ -330,19 +356,21 @@ public class ServiceHC2 extends IntentService {
         result = getUrl(HC2Actions.getRooms(), 20000);
         if (!TextUtils.isEmpty(result)) {
             List<Room> rooms = DataParserUtil.parseToRoomList(result);
-            ArrayList<Room> roomsToShow = new ArrayList<>();
-            for (Room r : rooms) {
-                if (r.sectionID == s.id) {
-                    roomsToShow.add(r);
+            if (rooms != null && rooms.size() > 0) {
+                ArrayList<Room> roomsToShow = new ArrayList<>();
+                for (Room r : rooms) {
+                    if (r.sectionID == s.id) {
+                        roomsToShow.add(r);
+                    }
                 }
-            }
-            if (roomsToShow.size() > 0) {
-                Intent in = new Intent(MainActivity.ACTION);
-                in.putExtra(RESULT_CODE, Activity.RESULT_OK);
-                in.putExtra(RESULT_ACTION, ServiceHC2Action.GetSection.getValue());
-                in.putParcelableArrayListExtra(RESULT_PARCEL, roomsToShow);
-                LocalBroadcastManager.getInstance(this).sendBroadcast(in);
+                if (roomsToShow.size() > 0) {
+                    Intent in = new Intent(MainActivity.ACTION);
+                    in.putExtra(RESULT_CODE, Activity.RESULT_OK);
+                    in.putExtra(RESULT_ACTION, ServiceHC2Action.GetSection.getValue());
+                    in.putParcelableArrayListExtra(RESULT_PARCEL, roomsToShow);
+                    LocalBroadcastManager.getInstance(this).sendBroadcast(in);
 
+                }
             }
         }
     }
@@ -357,23 +385,19 @@ public class ServiceHC2 extends IntentService {
         try {
             URL url = new URL(uRl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setReadTimeout(10000 /* milliseconds */);
+            conn.setReadTimeout(connTimeout /* milliseconds */);
             conn.setConnectTimeout(connTimeout /* milliseconds */);
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
-            // Starts the query
             conn.connect();
             int response = conn.getResponseCode();
             Log.d(TAG, "The response is: " + response);
             is = conn.getInputStream();
 
             if (is != null)
-                // Convert the InputStream into a string
                 return DataParserUtil.parseInputStreamToString(is);
             return null;
 
-            // Makes sure that the InputStream is closed after the app is
-            // finished using it.
         } finally {
             if (is != null) {
                 is.close();

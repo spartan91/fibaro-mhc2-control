@@ -9,6 +9,7 @@ public class HC2Actions {
     private final static String SECTIONS = "/api/sections";
     private final static String ROOMS = "/api/rooms";
     private final static String DEVICES = "/api/devices";
+    private final static String DEVICE = "?id=";
     private final static String CALL_ACTION = "/api/callAction";
     private final static String CALL_ACTION_DEVICE_ID = "deviceID=";
     private final static String CALL_ACTION_NAME = "name=";
@@ -48,7 +49,8 @@ public class HC2Actions {
     }
 
     public static String getDevice(int id) {
-        return SERVER_ADDRESS + DEVICES + "/" + id;
+        return SERVER_ADDRESS + DEVICES
+                + DEVICE+ id;
     }
 
     /*CallAction*/

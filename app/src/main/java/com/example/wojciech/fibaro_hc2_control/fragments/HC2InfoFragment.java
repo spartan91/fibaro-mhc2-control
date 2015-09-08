@@ -4,7 +4,6 @@ package com.example.wojciech.fibaro_hc2_control.fragments;
 import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,7 +19,9 @@ import java.lang.reflect.Field;
 
 public class HC2InfoFragment extends Fragment {
 
+    private static final String ARG_PARAM1 = "hc2_info";
     private TableLayout tableLayout;
+    private HC2 hC2;
 
     public HC2InfoFragment() {
         // Required empty public constructor
@@ -35,17 +36,27 @@ public class HC2InfoFragment extends Fragment {
         HC2InfoFragment fragment = new HC2InfoFragment();
         return fragment;
     }
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putParcelable(ARG_PARAM1, hC2);
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_hc2_info, container, false);
         tableLayout = (TableLayout) v.findViewById(R.id.table_layout);
+        if (savedInstanceState != null) {
+            hC2 = savedInstanceState.getParcelable(ARG_PARAM1);
+            setUpData(hC2);
+        }
         return v;
     }
 
     public void setUpData(HC2 hC2) {
         if (tableLayout != null && hC2 != null) {
+            this.hC2=hC2;
             tableLayout.removeAllViews();
             for (Field field : hC2.getClass().getFields()) {
                 if (field.getName().contains("CREATOR")

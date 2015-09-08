@@ -32,10 +32,6 @@
             android:id="@+id/nav_devices"
             android:icon="@drawable/ic_device_hub_black_24dp"
             android:title="@string/nav_devices" />
-        <item
-            android:id="@+id/nav_hc_info"
-            android:icon="@drawable/ic_info_black_24dp"
-            android:title="@string/nav_hmc_info" />
     </group>
 
 </menu>
